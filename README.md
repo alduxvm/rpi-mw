@@ -9,7 +9,8 @@ Right now, just ask to the MW board for Attitude, and just prints it on the scre
 
 It's tested on Mac and on a rpi. After changing the serial port to yours, you must be able to see something like is as output:
 
-$ python rpi-mw.py 
+<code>
+$ python rpi-mw.py
 Beginning in 8 seconds...
 Serial port is open at /dev/tty.usbserial-AM016WP4
 0 0.8 -0.9 -116
@@ -17,5 +18,6 @@ Serial port is open at /dev/tty.usbserial-AM016WP4
 0 0.8 -0.9 -116
 0 0.8 -0.9 -116
 0 0.7 -0.9 -116
+</code>
 
 Still lots of things to implement.
