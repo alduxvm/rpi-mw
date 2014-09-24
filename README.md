@@ -5,7 +5,7 @@ Connection between the MultiWii board and a Raspberry Pie
 
 Small implementation of the MultiWii serial protocol, based on the work by: Drew Brandsen 
 
-Right now, just ask to the MW board for Attitude, and just prints it on the screen, the porpuse will be to make it work as a datalogger for systems identification of the multicopter.
+Right now, just ask to the MW board for Attitude, and just prints it on the screen, the purpose will be to make it work as a datalogger for systems identification of the multicopter.
 
 It's tested on Mac and on a rpi. After changing the serial port to yours, you must be able to see something like is as output:
 
