@@ -19,6 +19,8 @@ import sys		# for user input
 import socket	# for TCP/IP communication
 import time		# for wait commands
 import datetime	# for current time
+import struct
+
 
 ###############################
 # Initialize Global Variables
@@ -77,7 +79,44 @@ MSP_ATTITUDE=BASIC+"\x6C\x6C"	#MSG ID: 108
 MSP_ALTITUDE=BASIC+"\x6D\x6D"	#MSG ID: 109
 MSP_BAT = BASIC+"\x6E\x6E"		#MSG ID: 110
 MSP_COMP_GPS=BASIC+"\x71\x71"	#MSG ID: 111
+MSP_SET_RC=BASIC+"\xC8\xC8"  	#MSG ID: 200
 
+CMD2CODE = {
+    'MSP_IDENT'           :     100,
+    'MSP_STATUS'          :     101,
+    'MSP_RAW_IMU'         :     102,
+    'MSP_SERVO'           :     103,
+    'MSP_MOTOR'           :     104,
+    'MSP_RC'              :     105,
+    'MSP_RAW_GPS'         :     106,
+    'MSP_COMP_GPS'        :     107,
+    'MSP_ATTITUDE'        :     108,
+    'MSP_ALTITUDE'        :     109,
+    'MSP_ANALOG'          :     110,
+    'MSP_RC_TUNING'       :     111,
+    'MSP_PID'             :     112,
+    'MSP_BOX'             :     113,
+    'MSP_MISC'            :     114,
+    'MSP_MOTOR_PINS'      :     115,
+    'MSP_BOXNAMES'        :     116,
+    'MSP_PIDNAMES'        :     117,
+    'MSP_WP'              :     118,
+    'MSP_BOXIDS'          :     119,
+
+    'MSP_SET_RAW_RC'      :     200,
+    'MSP_SET_RAW_GPS'     :     201,
+    'MSP_SET_PID'         :     202,
+    'MSP_SET_BOX'         :     203,
+    'MSP_SET_RC_TUNING'   :     204,
+    'MSP_ACC_CALIBRATION' :     205,
+    'MSP_MAG_CALIBRATION' :     206,
+    'MSP_SET_MISC'        :     207,
+    'MSP_RESET_CONF'      :     208,
+    'MSP_SET_WP'          :     209,
+   'MSP_SWITCH_RC_SERIAL' :     210,
+   'MSP_IS_SERIAL'        :     211,
+    'MSP_DEBUG'           :     254,
+}
 
 ################################################
 # ALTITUDE(msp)
@@ -199,6 +238,35 @@ def RC(msp):
 
 
 #############################################################
+# sendData(data_length, code, data)
+#	receives: the data length of the message, the code to send and the actual data to send
+#	outputs:  errors
+#	
+#############################################################
+
+
+def sendData(data_length, code, data):
+    checksum = 0
+    total_data = ['$', 'M', '<', data_length, code] + data
+    for i in struct.pack('<2B%dh' % len(data), *total_data[3:len(total_data)]):
+        checksum = checksum ^ ord(i)
+
+    total_data.append(checksum)
+
+    #print ser
+    try:
+        b = None
+        b = ser.write(struct.pack('<3c2B%dhB' % len(data), *total_data))
+        ser.flushInput()	# cleans out the serial port
+        ser.flushOutput()
+    except Exception, ex:
+        print 'send data is_valid_serial fail'
+        multi_info['is_valid_serial'] = False;
+        connect()
+    return b
+
+
+#############################################################
 # littleEndian(value)
 #	receives: a parsed, hex data piece
 #	outputs:  the decimal value of that data
@@ -250,6 +318,32 @@ def twosComp(hexValue):
 	else:		# if not a negative number, simply convert to decimal
 		return int(hexValue, 16)
 
+###################################################################
+# twosComp(hexValue)
+#	receives: the big endian hex value (correct format)
+#	outputs:  the decimal value of that data
+#	function: if the value is negative, swaps all bits
+#			up to but not including the rightmost 1.
+#			Else, just converts straight to decimal.
+#			(Flip all the bits left of the rightmost 1)
+#	returns:  the integer value
+###################################################################
+
+def multiwiiCMD():
+	rc_data = [1500, 1500, 2000, 1000 ]
+	sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
+	time.sleep(1)
+	rc_data = [1500, 1500, 2000, 1000 ]
+	sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
+	print('Arming... 3')
+	time.sleep(1)
+	print('Arming... 2')
+	time.sleep(1)
+	print('Arming... 1')
+	time.sleep(1)
+	rc_data = [1500, 1500, 1500, 1000 ]
+	sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
+    
 			
 ####################################################################
 ####################### MAIN #######################################
@@ -275,23 +369,31 @@ def main():
 	
 	if ser.isOpen(): #& ser2.isOpen():
 		#time.sleep(13.2) 	# Exact time for Altitude data to become live.
-		time.sleep(8)		# Gives time for the MultiWii to calibrate and begin sending live info
+		time.sleep(9)		# Gives time for the MultiWii to calibrate and begin sending live info
 		print("Serial port is open at"+ser.portstr)
+
+		file = open("data.csv", "w")
+		#timestamp = time.clock()
+		#multiwiiCMD()
+		
 		try:
 			while True:
 		#########################################################################
 		# Sends and Recieves MSP commands then sends received data over TCP/IP
 		#########################################################################
+
 				ser.flushInput()	# cleans out the serial port
 				ser.flushOutput()
-
 				ser.write(MSP_ATTITUDE)	# sends MSP request
 				time.sleep(0.02)	# gives adaquate time between MSP TX & RX
+				timestamp = time.clock()
 				response=ser.readline()	# reads MSP response
 				ATTITUDE(response)	# sends to ATTITUDE to parse and update global variables
 				ser.flushInput()	# cleans out the serial port
 				ser.flushOutput()
-					
+				error = (time.clock() - timestamp)*10
+
+				
 				#ser.write(MSP_RC)	# gets RC information
 				#time.sleep(0.01)
 				#response = ser.readline()
@@ -309,10 +411,12 @@ def main():
 
 				if beginFlag != 1:	# Won't send any data until both altitude and heading are valid data
 					#print("A"+str(latitude)+","+str(longitude)+","+str(altitude)+","+str(heading)+","+str(timestamp)+"Z"+str(numSats)+","+str(accuracy)+","+str(pitch)+","+str(roll)+","+str(yaw)+","+str(throttle)+"W")	# print in CSV
-					print(str(timestamp)+" "+str(angx)+" "+str(angy)+" "+str(heading))	# print in CSV
+					print(str(error)+" "+str(angx)+" "+str(angy)+" "+str(heading))	# print in CSV
+					file.write(str(error)+","+str(angx)+","+str(angy)+","+str(heading)+"\n")
 				else:			# If invalid, continue looping
 					beginFlag = 0	# resets the flag
 		       	ser.close()
+		       	file.close()
 
 	    	except Exception,e1:	# Catches any errors in the serial communication
 	        	print("Error communicating..."+str(e1))
