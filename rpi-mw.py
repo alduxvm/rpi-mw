@@ -48,7 +48,8 @@ angy = 0.0
 ##########################################################################
 
 ser=serial.Serial()
-ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to
+ser.port="/dev/tty.usbserial-A801WYTF"	# This is the port that the MultiWii is attached to (for mac)
+#ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
 ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
 ser.parity=serial.PARITY_NONE
