@@ -16,7 +16,7 @@
 
 import serial	# for serial communication
 import sys		# for user input
-import socket	# for TCP/IP communication
+import socket	# for UDP communication
 import time		# for wait commands
 import datetime	# for current time
 import struct
@@ -40,6 +40,7 @@ yaw = 0
 throttle = 0
 angx = 0.0
 angy = 0.0
+message = " "
 
 ##########################################################################
 ########################### Communication ################################
@@ -48,7 +49,7 @@ angy = 0.0
 ##########################################################################
 
 ser=serial.Serial()
-ser.port="/dev/tty.usbserial-A801WYTF"	# This is the port that the MultiWii is attached to (for mac)
+ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
 ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
@@ -59,6 +60,8 @@ ser.xonxoff=False
 ser.rtscts=False
 ser.dsrdtr=False
 ser.writeTimeout=2
+udp_ip = "172.30.146.252"
+udp_port = 5005
 
 
 #####################################################################
@@ -363,6 +366,7 @@ def main():
 
 	try:
 		ser.open()		# Opens the MultiWii serial port
+		sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 
 	except Exception,e:	# catches any errors with opening serial ports
 		print("Error open serial port: "+str(e))
@@ -412,8 +416,10 @@ def main():
 
 				if beginFlag != 1:	# Won't send any data until both altitude and heading are valid data
 					#print("A"+str(latitude)+","+str(longitude)+","+str(altitude)+","+str(heading)+","+str(timestamp)+"Z"+str(numSats)+","+str(accuracy)+","+str(pitch)+","+str(roll)+","+str(yaw)+","+str(throttle)+"W")	# print in CSV
-					print(str(error)+" "+str(angx)+" "+str(angy)+" "+str(heading))	# print in CSV
-					file.write(str(error)+","+str(angx)+","+str(angy)+","+str(heading)+"\n")
+					message = str(error)+" "+str(angx)+" "+str(angy)+" "+str(heading)
+					print(message)	# print in CSV
+					file.write(message+"\n")
+					sock.sendto(message, (udp_ip, udp_port))
 				else:			# If invalid, continue looping
 					beginFlag = 0	# resets the flag
 		       	ser.close()
