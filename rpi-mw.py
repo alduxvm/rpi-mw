@@ -20,6 +20,7 @@ import socket	# for UDP communication
 import time		# for wait commands
 import datetime	# for current time
 import struct
+import time
 
 
 ###############################
@@ -40,7 +41,13 @@ yaw = 0
 throttle = 0
 angx = 0.0
 angy = 0.0
+m1 = 0
+m2 = 0
+m3 = 0
+m4 = 0
 message = " "
+
+
 
 ##########################################################################
 ########################### Communication ################################
@@ -49,7 +56,7 @@ message = " "
 ##########################################################################
 
 ser=serial.Serial()
-ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac)
+ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
 ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
@@ -60,8 +67,10 @@ ser.xonxoff=False
 ser.rtscts=False
 ser.dsrdtr=False
 ser.writeTimeout=2
+timeMSP=0.02
 udp_ip = "172.30.146.252"
 udp_port = 5005
+
 
 
 #####################################################################
@@ -241,6 +250,55 @@ def RC(msp):
                 #print(str(roll) + " " + str(pitch) + " " + str(yaw) + " " + str(throttle))
 
 
+################################################
+# MOTORS(msp)
+#       receives: msp MOTORS message
+#       outputs:  prints data in nice format
+#       returns:  motor 1/motor 2/motor 3/motor 4
+################################################
+def MOTORS(msp):
+        global m1
+        global m2
+        global m3
+        global m4
+        if str(msp) == "":
+                #print(msp_hex)
+                #print("Header: " + msp_hex[:6])
+                #payload = int(msp_hex[6:8])
+                #print("Payload: " + msp_hex[6:8])
+                #print("Code: " + msp_hex[8:10])
+                #print("RC data unavailable")
+                return
+        else:
+                msp_hex = msp.encode("hex")
+
+                if msp_hex[10:14] == "":
+                        print("motor 1 unavailable")
+                        return
+                else:
+                        m1 = float(littleEndian(msp_hex[10:14]))
+
+                if msp_hex[14:18] == "":
+                        print("motor 2 unavailable")
+                        return
+                else:
+                        m2 = float(littleEndian(msp_hex[14:18]))
+
+                if msp_hex[18:22] == "":
+                        print("motor 3 unavailable")
+                        return
+                else:
+                        m3 = float(littleEndian(msp_hex[18:22]))
+
+                if msp_hex[22:26] == "":
+                        print("motor 4 unavailable")
+                        return
+                else:
+                        m4 = float(littleEndian(msp_hex[22:26]))
+                        return
+                #print(str(roll) + " " + str(pitch) + " " + str(yaw) + " " + str(throttle))                
+
+
 #############################################################
 # sendData(data_length, code, data)
 #	receives: the data length of the message, the code to send and the actual data to send
@@ -322,33 +380,73 @@ def twosComp(hexValue):
 	else:		# if not a negative number, simply convert to decimal
 		return int(hexValue, 16)
 
-###################################################################
-# twosComp(hexValue)
-#	receives: the big endian hex value (correct format)
-#	outputs:  the decimal value of that data
-#	function: if the value is negative, swaps all bits
-#			up to but not including the rightmost 1.
-#			Else, just converts straight to decimal.
-#			(Flip all the bits left of the rightmost 1)
-#	returns:  the integer value
-###################################################################
 
-def multiwiiCMD():
-	rc_data = [1500, 1500, 2000, 1000 ]
-	sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
-	time.sleep(1)
-	rc_data = [1500, 1500, 2000, 1000 ]
-	sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
-	print('Arming... 3')
-	time.sleep(1)
-	print('Arming... 2')
-	time.sleep(1)
-	print('Arming... 1')
-	time.sleep(1)
-	rc_data = [1500, 1500, 1500, 1000 ]
-	sendData(16, CMD2CODE['MSP_SET_RAW_RC'], rc_data)
-    
-			
+#############################################################
+# askATT()
+#	receives: nothing
+#	outputs:  nothing
+#	function: Do everything to ask the MW for data and save it on globals 
+#	returns:  nothing
+#############################################################
+def askATT():
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
+	ser.write(MSP_ATTITUDE)	# sends MSP request
+	time.sleep(timeMSP)	# gives adaquate time between MSP TX & RX
+	response=ser.readline()	# reads MSP response
+	ATTITUDE(response)	# sends to ATTITUDE to parse and update global variables
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()	
+
+
+#############################################################
+# askRC()
+#	receives: nothing
+#	outputs:  nothing
+#	function: Do everything to ask the MW for data and save it on globals 
+#	returns:  nothing
+#############################################################
+def askRC():
+	ser.write(MSP_RC)	# gets RC information
+	time.sleep(timeMSP)
+	response = ser.readline()
+	RC(response)
+	ser.flushInput();
+	ser.flushOutput();	
+
+
+#############################################################
+# askALT()
+#	receives: nothing
+#	outputs:  nothing
+#	function: Do everything to ask the MW for data and save it on globals 
+#	returns:  nothing
+#############################################################
+def askALT():
+	ser.write(MSP_ALTITUDE)	# gets ALTITUDE data
+	time.sleep(timeMSP)
+	response=ser.readline()
+	ALTITUDE(response)
+	ser.flushInput();
+	ser.flushOutput(); MSP_MOTOR	
+
+
+#############################################################
+# askMOT()
+#	receives: nothing
+#	outputs:  nothing
+#	function: Do everything to ask the MW for data and save it on globals 
+#	returns:  nothing
+#############################################################
+def askMOT():
+	ser.write(MSP_MOTOR)	# gets ALTITUDE data
+	time.sleep(timeMSP)
+	response=ser.readline()
+	MOTORS(response)
+	ser.flushInput();
+	ser.flushOutput(); 	
+
+
 ####################################################################
 ####################### MAIN #######################################
 ####################################################################
@@ -361,8 +459,8 @@ def multiwiiCMD():
 ####################################################################
 def main():
 	global beginFlag
-	
-	print ("Beginning in 8 seconds...")
+
+	print ("Beginning in 9 seconds...")
 
 	try:
 		ser.open()		# Opens the MultiWii serial port
@@ -375,51 +473,45 @@ def main():
 	if ser.isOpen(): #& ser2.isOpen():
 		#time.sleep(13.2) 	# Exact time for Altitude data to become live.
 		time.sleep(9)		# Gives time for the MultiWii to calibrate and begin sending live info
-		print("Serial port is open at"+ser.portstr)
-
-		file = open("data.csv", "w")
+		#print("Serial port is open at"+ser.portstr)
+		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d+%H-%M-%S')+".csv"
+		file = open("data/"+st, "w")
 		#timestamp = time.clock()
-		#multiwiiCMD()
 		
 		try:
 			while True:
 		#########################################################################
-		# Sends and Recieves MSP commands then sends received data over TCP/IP
+		# Loop
 		#########################################################################
 
-				ser.flushInput()	# cleans out the serial port
-				ser.flushOutput()
-				ser.write(MSP_ATTITUDE)	# sends MSP request
-				time.sleep(0.02)	# gives adaquate time between MSP TX & RX
+				#Start timing
 				timestamp = time.clock()
-				response=ser.readline()	# reads MSP response
-				ATTITUDE(response)	# sends to ATTITUDE to parse and update global variables
-				ser.flushInput()	# cleans out the serial port
-				ser.flushOutput()
+
+				askATT()
+				askRC()
+				askALT()
+
+				#time again after after getting all data
 				error = (time.clock() - timestamp)*10
 
-				
-				#ser.write(MSP_RC)	# gets RC information
-				#time.sleep(0.01)
-				#response = ser.readline()
-				#RC(response)
-				#ser.flushInput();
-				#ser.flushOutput();
-
-				#ser.write(MSP_ALTITUDE)	# gets ALTITUDE data
-				#time.sleep(0.01)
-				#response=ser.readline()
-				#ALTITUDE(response)
-				#ser.flushInput();
-				#ser.flushOutput();
-
-
 				if beginFlag != 1:	# Won't send any data until both altitude and heading are valid data
-					#print("A"+str(latitude)+","+str(longitude)+","+str(altitude)+","+str(heading)+","+str(timestamp)+"Z"+str(numSats)+","+str(accuracy)+","+str(pitch)+","+str(roll)+","+str(yaw)+","+str(throttle)+"W")	# print in CSV
-					message = str(error)+" "+str(angx)+" "+str(angy)+" "+str(heading)
-					print(message)	# print in CSV
+					#Start adding all data to a variable
+					message = str(error)
+					#save attitude
+					message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)
+					#save pilot commands
+					message = message+" "+str(roll)+" "+str(pitch)+" "+str(yaw)+" "+str(throttle)
+					#save altitude
+					message = message+" "+str(altitude)
+					#save motors
+					message = message+" "+str(m1)+" "+str(m2)+" "+str(m3)+" "+str(m4)
+					
+					#print to terminal
+					#print(message)	
+					# print in CSV
 					file.write(message+"\n")
-					sock.sendto(message, (udp_ip, udp_port))
+					#send via UDP
+					#sock.sendto(message, (udp_ip, udp_port))
 				else:			# If invalid, continue looping
 					beginFlag = 0	# resets the flag
 		       	ser.close()
