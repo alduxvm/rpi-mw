@@ -56,7 +56,7 @@ message = " "
 ##########################################################################
 
 ser=serial.Serial()
-ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac)
+ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
 ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
@@ -460,11 +460,11 @@ def askMOT():
 def main():
 	global beginFlag
 
-	print ("Beginning in 9 seconds...")
+	print ("Beginning in 14 seconds...")
 
 	try:
 		ser.open()		# Opens the MultiWii serial port
-		sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+		#sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 
 	except Exception,e:	# catches any errors with opening serial ports
 		print("Error open serial port: "+str(e))
@@ -472,7 +472,7 @@ def main():
 	
 	if ser.isOpen(): #& ser2.isOpen():
 		#time.sleep(13.2) 	# Exact time for Altitude data to become live.
-		time.sleep(9)		# Gives time for the MultiWii to calibrate and begin sending live info
+		time.sleep(14)		# Gives time for the MultiWii to calibrate and begin sending live info
 		#print("Serial port is open at"+ser.portstr)
 		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d+%H-%M-%S')+".csv"
 		file = open("data/"+st, "w")
@@ -507,7 +507,7 @@ def main():
 					message = message+" "+str(m1)+" "+str(m2)+" "+str(m3)+" "+str(m4)
 					
 					#print to terminal
-					#print(message)	
+					print(message)	
 					# print in CSV
 					file.write(message+"\n")
 					#send via UDP
