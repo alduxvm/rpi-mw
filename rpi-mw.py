@@ -1,4 +1,3 @@
-
 #####################################################################
 # Aldo Vargas
 # 
@@ -21,32 +20,6 @@ import time		# for wait commands
 import datetime	# for current time
 import struct
 import time
-
-
-###############################
-# Initialize Global Variables
-###############################
-latitude = 0.0
-longitude = 0.0
-altitude = -0
-heading = -0
-timestamp = -0
-gpsString = -0
-numSats = -0
-accuracy = -1
-beginFlag = 0
-roll = 0
-pitch = 0
-yaw = 0
-throttle = 0
-angx = 0.0
-angy = 0.0
-m1 = 0
-m2 = 0
-m3 = 0
-m4 = 0
-message = " "
-
 
 
 ##########################################################################
@@ -72,6 +45,39 @@ udp_ip = "172.30.146.252"
 udp_port = 5005
 
 
+###############################
+# Initialize Global Variables
+###############################
+latitude = 0.0
+longitude = 0.0
+altitude = -0
+heading = -0
+timestamp = -0
+gpsString = -0
+numSats = -0
+accuracy = -1
+beginFlag = 0
+roll = 0
+pitch = 0
+yaw = 0
+throttle = 0
+angx = 0.0
+angy = 0.0
+m1 = 0
+m2 = 0
+m3 = 0
+m4 = 0
+message = " "
+ax = 0
+ay = 0
+az = 0
+gx = 0
+gy = 0
+gz = 0
+magx = 0
+magy = 0
+magz = 0
+
 
 #####################################################################
 ###################### MultiWii Serial Protocol######################
@@ -95,40 +101,40 @@ MSP_COMP_GPS=BASIC+"\x71\x71"	#MSG ID: 111
 MSP_SET_RC=BASIC+"\xC8\xC8"  	#MSG ID: 200
 
 CMD2CODE = {
-    'MSP_IDENT'           :     100,
-    'MSP_STATUS'          :     101,
-    'MSP_RAW_IMU'         :     102,
-    'MSP_SERVO'           :     103,
-    'MSP_MOTOR'           :     104,
-    'MSP_RC'              :     105,
-    'MSP_RAW_GPS'         :     106,
-    'MSP_COMP_GPS'        :     107,
-    'MSP_ATTITUDE'        :     108,
-    'MSP_ALTITUDE'        :     109,
-    'MSP_ANALOG'          :     110,
-    'MSP_RC_TUNING'       :     111,
-    'MSP_PID'             :     112,
-    'MSP_BOX'             :     113,
-    'MSP_MISC'            :     114,
-    'MSP_MOTOR_PINS'      :     115,
-    'MSP_BOXNAMES'        :     116,
-    'MSP_PIDNAMES'        :     117,
-    'MSP_WP'              :     118,
-    'MSP_BOXIDS'          :     119,
+'MSP_IDENT':100,
+'MSP_STATUS':101,
+'MSP_RAW_IMU':102,
+'MSP_SERVO':103,
+'MSP_MOTOR':104,
+'MSP_RC':105,
+'MSP_RAW_GPS':106,
+'MSP_COMP_GPS':107,
+'MSP_ATTITUDE':108,
+'MSP_ALTITUDE':109,
+'MSP_ANALOG':110,
+'MSP_RC_TUNING':111,
+'MSP_PID':112,
+'MSP_BOX':113,
+'MSP_MISC':114,
+'MSP_MOTOR_PINS':115,
+'MSP_BOXNAMES':116,
+'MSP_PIDNAMES':117,
+'MSP_WP':118,
+'MSP_BOXIDS':119,
 
-    'MSP_SET_RAW_RC'      :     200,
-    'MSP_SET_RAW_GPS'     :     201,
-    'MSP_SET_PID'         :     202,
-    'MSP_SET_BOX'         :     203,
-    'MSP_SET_RC_TUNING'   :     204,
-    'MSP_ACC_CALIBRATION' :     205,
-    'MSP_MAG_CALIBRATION' :     206,
-    'MSP_SET_MISC'        :     207,
-    'MSP_RESET_CONF'      :     208,
-    'MSP_SET_WP'          :     209,
-   'MSP_SWITCH_RC_SERIAL' :     210,
-   'MSP_IS_SERIAL'        :     211,
-    'MSP_DEBUG'           :     254,
+'MSP_SET_RAW_RC':200,
+'MSP_SET_RAW_GPS':201,
+'MSP_SET_PID':202,
+'MSP_SET_BOX':203,
+'MSP_SET_RC_TUNING':204,
+'MSP_ACC_CALIBRATION':205,
+'MSP_MAG_CALIBRATION':206,
+'MSP_SET_MISC':207,
+'MSP_RESET_CONF':208,
+'MSP_SET_WP':209,
+'MSP_SWITCH_RC_SERIAL':210,
+'MSP_IS_SERIAL':211,
+'MSP_DEBUG':254,
 }
 
 ################################################
@@ -138,37 +144,36 @@ CMD2CODE = {
 #	returns:  Angle in X, Y and heading
 ################################################
 def ATTITUDE(msp):
-        global angx
-        global angy
-        global heading
-        if str(msp) == "":
-                #print(msp_hex)
-                #print("Header: " + msp_hex[:6])
-                #payload = int(msp_hex[6:8])
-                #print("Payload: " + msp_hex[6:8])
-                #print("Code: " + msp_hex[8:10])
-                #print("RC data unavailable")
-                return
-        else:
-                msp_hex = msp.encode("hex")
+	global angx
+	global angy
+	global heading
+	if str(msp) == "":
+		#print(msp_hex)
+		#print("Header: " + msp_hex[:6])
+		#payload = int(msp_hex[6:8])
+		#print("Payload: " + msp_hex[6:8])
+		#print("Code: " + msp_hex[8:10])
+		#print("RC data unavailable")
+		return
+	else:
+		msp_hex = msp.encode("hex")
+		if msp_hex[10:14] == "":
+			#print("angx unavailable")
+			return
+		else:
+			angx = littleEndian(msp_hex[10:14])/10.0
 
-                if msp_hex[10:14] == "":
-                        #print("angx unavailable")
-                        return
-                else:
-                        angx = littleEndian(msp_hex[10:14])/10.0
+		if msp_hex[14:18] == "":
+			#print("angy unavailable")
+			return
+		else:
+			angy = littleEndian(msp_hex[14:18])/10.0
 
-                if msp_hex[14:18] == "":
-                        #print("angy unavailable")
-                        return
-                else:
-                        angy = littleEndian(msp_hex[14:18])/10.0
-
-                if msp_hex[18:22] == "":
-                        #print("head unavailable")
-                        return
-                else:
-                        heading = littleEndian(msp_hex[18:22])+5
+		if msp_hex[18:22] == "":
+			#print("head unavailable")
+			return
+		else:
+			heading = littleEndian(msp_hex[18:22])+5
 
 
 ################################################
@@ -203,100 +208,183 @@ def ALTITUDE(msp):
 
 ################################################
 # RC(msp)
-#       receives: msp RC message
-#       outputs:  prints data in nice format
-#       returns:  Roll/Pitch/Yaw/Throttle
+#\t   receives: msp RC message
+#\t   outputs:  prints data in nice format
+#\t   returns:  Roll/Pitch/Yaw/Throttle
 ################################################
 def RC(msp):
-        global roll
-        global pitch
-        global yaw
-        global throttle
-        if str(msp) == "":
-                #print(msp_hex)
-                #print("Header: " + msp_hex[:6])
-                #payload = int(msp_hex[6:8])
-                #print("Payload: " + msp_hex[6:8])
-                #print("Code: " + msp_hex[8:10])
-                #print("RC data unavailable")
-                return
-        else:
-                msp_hex = msp.encode("hex")
+	global roll
+	global pitch
+	global yaw
+	global throttle
+	if str(msp) == "":
+		#print(msp_hex)
+		#print("Header: " + msp_hex[:6])
+		#payload = int(msp_hex[6:8])
+		#print("Payload: " + msp_hex[6:8])
+		#print("Code: " + msp_hex[8:10])
+		#print("RC data unavailable")
+		return
+	else:
+		msp_hex = msp.encode("hex")
 
-                if msp_hex[10:14] == "":
-                        print("roll unavailable")
-                        return
-                else:
-                        roll = float(littleEndian(msp_hex[10:14]))
+		if msp_hex[10:14] == "":
+			print("roll unavailable")
+			return
+		else:
+			roll = float(littleEndian(msp_hex[10:14]))
 
-                if msp_hex[14:18] == "":
-                        print("pitch unavailable")
-                        return
-                else:
-                        pitch = float(littleEndian(msp_hex[14:18]))
+		if msp_hex[14:18] == "":
+			print("pitch unavailable")
+			return
+		else:
+			pitch = float(littleEndian(msp_hex[14:18]))
 
-                if msp_hex[18:22] == "":
-                        print("yaw unavailable")
-                        return
-                else:
-                        yaw = float(littleEndian(msp_hex[18:22]))
+		if msp_hex[18:22] == "":
+			print("yaw unavailable")
+			return
+		else:
+			yaw = float(littleEndian(msp_hex[18:22]))
 
-                if msp_hex[22:26] == "":
-                        print("throttle unavailable")
-                        return
-                else:
-                        throttle = float(littleEndian(msp_hex[22:26]))
-                        return
-                #print(str(roll) + " " + str(pitch) + " " + str(yaw) + " " + str(throttle))
+		if msp_hex[22:26] == "":
+			print("throttle unavailable")
+			return
+		else:
+			throttle = float(littleEndian(msp_hex[22:26]))
+			return
+		#print(str(roll) + " " + str(pitch) + " " + str(yaw) + " " + str(throttle))
 
 
 ################################################
 # MOTORS(msp)
-#       receives: msp MOTORS message
-#       outputs:  prints data in nice format
-#       returns:  motor 1/motor 2/motor 3/motor 4
+#\t   receives: msp MOTORS message
+#\t   outputs:  prints data in nice format
+#\t   returns:  motor 1/motor 2/motor 3/motor 4
 ################################################
 def MOTORS(msp):
-        global m1
-        global m2
-        global m3
-        global m4
-        if str(msp) == "":
-                #print(msp_hex)
-                #print("Header: " + msp_hex[:6])
-                #payload = int(msp_hex[6:8])
-                #print("Payload: " + msp_hex[6:8])
-                #print("Code: " + msp_hex[8:10])
-                #print("RC data unavailable")
-                return
-        else:
-                msp_hex = msp.encode("hex")
+	global m1
+	global m2
+	global m3
+	global m4
+	if str(msp) == "":
+		#print(msp_hex)
+		#print("Header: " + msp_hex[:6])
+		#payload = int(msp_hex[6:8])
+		#print("Payload: " + msp_hex[6:8])
+		#print("Code: " + msp_hex[8:10])
+		#print("RC data unavailable")
+		return
+	else:
+		msp_hex = msp.encode("hex")
 
-                if msp_hex[10:14] == "":
-                        print("motor 1 unavailable")
-                        return
-                else:
-                        m1 = float(littleEndian(msp_hex[10:14]))
+		if msp_hex[10:14] == "":
+			print("motor 1 unavailable")
+			return
+		else:
+			m1 = float(littleEndian(msp_hex[10:14]))
 
-                if msp_hex[14:18] == "":
-                        print("motor 2 unavailable")
-                        return
-                else:
-                        m2 = float(littleEndian(msp_hex[14:18]))
+		if msp_hex[14:18] == "":
+			print("motor 2 unavailable")
+			return
+		else:
+			m2 = float(littleEndian(msp_hex[14:18]))
 
-                if msp_hex[18:22] == "":
-                        print("motor 3 unavailable")
-                        return
-                else:
-                        m3 = float(littleEndian(msp_hex[18:22]))
+		if msp_hex[18:22] == "":
+			print("motor 3 unavailable")
+			return
+		else:
+			m3 = float(littleEndian(msp_hex[18:22]))
 
-                if msp_hex[22:26] == "":
-                        print("motor 4 unavailable")
-                        return
-                else:
-                        m4 = float(littleEndian(msp_hex[22:26]))
-                        return
-                #print(str(roll) + " " + str(pitch) + " " + str(yaw) + " " + str(throttle))                
+		if msp_hex[22:26] == "":
+			print("motor 4 unavailable")
+			return
+		else:
+			m4 = float(littleEndian(msp_hex[22:26]))
+			return
+		#print(str(roll) + " " + str(pitch) + " " + str(yaw) + " " + str(throttle))
+
+
+################################################
+# RAW(msp)
+#\t   receives: msp raw message
+#\t   outputs:  prints data in nice format
+#\t   returns:  ax/ay/az/gx/gy/gz/magx/magy/magz
+################################################
+def RAW(msp):
+	global ax
+	global ay
+	global az
+	global gx
+	global gy
+	global gz
+	global magx
+	global magy
+	global magz
+	if str(msp) == "":
+		#print(msp_hex)
+		#print("Header: " + msp_hex[:6])
+		#payload = int(msp_hex[6:8])
+		#print("Payload: " + msp_hex[6:8])
+		#print("Code: " + msp_hex[8:10])
+		#print("RC data unavailable")
+		return
+	else:
+		msp_hex = msp.encode("hex")
+		if msp_hex[10:14] == "":
+			print("ax unavailable")
+			return
+		else:
+			ax = float(littleEndian(msp_hex[10:14]))
+		
+		if msp_hex[14:18] == "":
+			print("ay unavailable")
+			return
+		else:
+			ay = float(littleEndian(msp_hex[14:18]))
+
+		if msp_hex[18:22] == "":
+			print("az unavailable")
+			return
+		else:
+			az = float(littleEndian(msp_hex[18:22]))
+
+		if msp_hex[22:26] == "":
+			print("gx unavailable")
+			return
+		else:
+			gx = float(littleEndian(msp_hex[22:26]))
+		
+		if msp_hex[26:30] == "":
+			print("gy unavailable")
+			return
+		else:
+			gy = float(littleEndian(msp_hex[26:30]))
+
+		if msp_hex[30:34] == "":
+			print("gz unavailable")
+			return
+		else:
+			gz = float(littleEndian(msp_hex[30:34]))
+
+		if msp_hex[34:38] == "":
+			print("magx unavailable")
+			return
+		else:
+			magx = float(littleEndian(msp_hex[34:38]))
+		
+		if msp_hex[38:42] == "":
+			print("magy unavailable")
+			return
+		else:
+			magy = float(littleEndian(msp_hex[38:42]))
+
+		if msp_hex[42:46] == "":
+			print("magz unavailable")
+			return
+		else:
+			magz = float(littleEndian(msp_hex[42:46]))
+			return
+		#print(str(roll) + " " + str(pitch) + " " + str(yaw) + " " + str(throttle))  
 
 
 #############################################################
@@ -308,24 +396,24 @@ def MOTORS(msp):
 
 
 def sendData(data_length, code, data):
-    checksum = 0
-    total_data = ['$', 'M', '<', data_length, code] + data
-    for i in struct.pack('<2B%dh' % len(data), *total_data[3:len(total_data)]):
-        checksum = checksum ^ ord(i)
+	checksum = 0
+	total_data = ['$', 'M', '<', data_length, code] + data
+	for i in struct.pack('<2B%dh' % len(data), *total_data[3:len(total_data)]):
+		checksum = checksum ^ ord(i)
 
-    total_data.append(checksum)
+	total_data.append(checksum)
 
-    #print ser
-    try:
-        b = None
-        b = ser.write(struct.pack('<3c2B%dhB' % len(data), *total_data))
-        ser.flushInput()	# cleans out the serial port
-        ser.flushOutput()
-    except Exception, ex:
-        print 'send data is_valid_serial fail'
-        multi_info['is_valid_serial'] = False;
-        connect()
-    return b
+	#print ser
+	try:
+		b = None
+		b = ser.write(struct.pack('<3c2B%dhB' % len(data), *total_data))
+		ser.flushInput()	# cleans out the serial port
+		ser.flushOutput()
+	except Exception, ex:
+		print 'send data is_valid_serial fail'
+		multi_info['is_valid_serial'] = False;
+		connect()
+	return b
 
 
 #############################################################
@@ -427,24 +515,40 @@ def askALT():
 	time.sleep(timeMSP)
 	response=ser.readline()
 	ALTITUDE(response)
-	ser.flushInput();
-	ser.flushOutput(); MSP_MOTOR	
+	ser.flushInput()
+	ser.flushOutput()
 
 
 #############################################################
-# askMOT()
-#	receives: nothing
-#	outputs:  nothing
-#	function: Do everything to ask the MW for data and save it on globals 
-#	returns:  nothing
+# askALT()
+#   receives: nothing
+#   outputs:  nothing
+#   function: Do everything to ask the MW for data and save it on globals 
+#   returns:  nothing
 #############################################################
-def askMOT():
-	ser.write(MSP_MOTOR)	# gets ALTITUDE data
+def askMOTOR():
+	ser.write(MSP_MOTOR) # gets motors data
 	time.sleep(timeMSP)
 	response=ser.readline()
 	MOTORS(response)
-	ser.flushInput();
-	ser.flushOutput(); 	
+	ser.flushInput()
+	ser.flushOutput()
+
+
+#############################################################
+# askRAW()
+#   receives: nothing
+#   outputs:  nothing
+#   function: Do everything to ask the MW for data and save it on globals 
+#   returns:  nothing
+#############################################################
+def askRAW():
+	ser.write(MSP_RAW_IMU) # gets raw data
+	time.sleep(timeMSP)
+	response=ser.readline()
+	RAW(response)
+	ser.flushInput()
+	ser.flushOutput()
 
 
 ####################################################################
@@ -490,6 +594,8 @@ def main():
 				askATT()
 				askRC()
 				askALT()
+				askMOTOR()
+				askRAW()
 
 				#time again after after getting all data
 				error = (time.clock() - timestamp)*10
@@ -505,7 +611,10 @@ def main():
 					message = message+" "+str(altitude)
 					#save motors
 					message = message+" "+str(m1)+" "+str(m2)+" "+str(m3)+" "+str(m4)
+					#save raw
+					message = message+" "+str(ax)+" "+str(ay)+" "+str(az)+" "+str(gx)+" "+str(gy)+" "+str(gz)+" "+str(magx)+" "+str(magy)+" "+str(magz)
 					
+
 					#print to terminal
 					print(message)	
 					# print in CSV
@@ -514,13 +623,13 @@ def main():
 					#sock.sendto(message, (udp_ip, udp_port))
 				else:			# If invalid, continue looping
 					beginFlag = 0	# resets the flag
-		       	ser.close()
-		       	file.close()
-
-	    	except Exception,e1:	# Catches any errors in the serial communication
-	        	print("Error communicating..."+str(e1))
+			ser.close()
+			file.close()
+		
+		except Exception,e1:	# Catches any errors in the serial communication
+			print("Error communicating..."+str(e1))
 	else:
-    		print("Cannot open serial port")
+		print("Cannot open serial port")
 
 #-----------------------------------------------------------------------
 if __name__=="__main__":
