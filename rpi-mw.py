@@ -42,8 +42,8 @@ ser.rtscts=False
 ser.dsrdtr=False
 ser.writeTimeout=2
 timeMSP=0.02
-udp_ip = "172.30.146.252"
-udp_port = 5005
+udp_ip = "localhost"
+udp_port = 51001
 
 
 ###############################
@@ -78,6 +78,7 @@ gz = 0
 magx = 0
 magy = 0
 magz = 0
+gp = 0
 
 
 #####################################################################
@@ -552,6 +553,17 @@ def askRAW():
 	ser.flushOutput()
 
 
+#############################################################
+# getUDP()
+#   receives: nothing
+#   outputs:  nothing
+#   function: Receive, decode and print a udp packet data 
+#   returns:  nothing
+#############################################################
+def getUDP():
+	return
+
+
 ####################################################################
 ####################### MAIN #######################################
 ####################################################################
@@ -569,7 +581,8 @@ def main():
 
 	try:
 		ser.open()		# Opens the MultiWii serial port
-		#sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+		sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+		sock.bind((udp_ip, udp_port))
 
 	except Exception,e:	# catches any errors with opening serial ports
 		print("Error open serial port: "+str(e))
@@ -598,31 +611,34 @@ def main():
 				#askALT()
 				#askMOTOR()
 				#askRAW()
+				data, addr = sock.recvfrom(1024)
+				gp = struct.unpack('d',data)
 
 				#time again after after getting all data
 				#error = (time.clock() - timestamp)*10
 				error = timeit.default_timer() - timestamp
-				print '{0:.10f}'.format(error)
+				#print '{0:.10f}'.format(error)
 
 				if beginFlag != 1:	# Won't send any data until both altitude and heading are valid data
 					#Start adding all data to a variable
 					message = str(error)
 					#save attitude
-					message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)
+					message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)+" "+str(gp[0])+" "+str(gp[1])
 					#save pilot commands
-					message = message+" "+str(roll)+" "+str(pitch)+" "+str(yaw)+" "+str(throttle)
+					#message = message+" "+str(roll)+" "+str(pitch)+" "+str(yaw)+" "+str(throttle)
 					#save altitude
-					message = message+" "+str(altitude)
+					#message = message+" "+str(altitude)
 					#save motors
-					message = message+" "+str(m1)+" "+str(m2)+" "+str(m3)+" "+str(m4)
+					#message = message+" "+str(m1)+" "+str(m2)+" "+str(m3)+" "+str(m4)
 					#save raw
-					message = message+" "+str(ax)+" "+str(ay)+" "+str(az)+" "+str(gx)+" "+str(gy)+" "+str(gz)+" "+str(magx)+" "+str(magy)+" "+str(magz)
-					
+					#message = message+" "+str(ax)+" "+str(ay)+" "+str(az)+" "+str(gx)+" "+str(gy)+" "+str(gz)+" "+str(magx)+" "+str(magy)+" "+str(magz)
+
+					#message = message+" "str(gp) 
 
 					#print to terminal
-					#print(message)	
+					print(message)	
 					# print in CSV
-					file.write(message+"\n")
+					#file.write(message+"\n")
 					#send via UDP
 					#sock.sendto(message, (udp_ip, udp_port))
 				else:			# If invalid, continue looping
