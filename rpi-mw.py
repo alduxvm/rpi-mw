@@ -20,6 +20,7 @@ import time		# for wait commands
 import datetime	# for current time
 import struct
 import time
+import timeit
 
 
 ##########################################################################
@@ -589,16 +590,19 @@ def main():
 		#########################################################################
 
 				#Start timing
-				timestamp = time.clock()
+				#timestamp = time.clock()
+				timestamp = timeit.default_timer()
 
 				askATT()
-				askRC()
-				askALT()
-				askMOTOR()
-				askRAW()
+				#askRC()
+				#askALT()
+				#askMOTOR()
+				#askRAW()
 
 				#time again after after getting all data
-				error = (time.clock() - timestamp)*10
+				#error = (time.clock() - timestamp)*10
+				error = timeit.default_timer() - timestamp
+				print '{0:.10f}'.format(error)
 
 				if beginFlag != 1:	# Won't send any data until both altitude and heading are valid data
 					#Start adding all data to a variable
@@ -616,7 +620,7 @@ def main():
 					
 
 					#print to terminal
-					print(message)	
+					#print(message)	
 					# print in CSV
 					file.write(message+"\n")
 					#send via UDP
