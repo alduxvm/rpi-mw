@@ -19,18 +19,40 @@ import socket	# for UDP communication
 import time		# for wait commands
 import datetime	# for current time
 import struct
-import time
 import timeit
+
+
+##########################################################################
+########################### Configuration ################################
+##########################################################################
+# The following lines define the serial port
+##########################################################################
+
+class drone(object):
+	FILE 	=	0 	# Save to a timestamped file, the data selected below
+	TIME 	= 	1 	# Save the difference of time between all the main functions for perfomance logging
+	ATT 	= 	0 	# Ask and save the attitude of the multicopter
+	ALT 	= 	0 	# Ask and save the altitude of the multicopter
+	RC  	= 	0 	# Ask and save the pilot commands of the multicopter
+	MOT 	= 	0 	# Ask and save the PWM of the motors that the MW is writing to the multicopter
+	RAW 	= 	0 	# Ask and save the raw imu data of the multicopter
+	CMD 	= 	0 	# Send commands to the MW to control it
+	UDP 	=	1 	# Save or use UDP data (to be adjusted)
+	PRINT 	= 	1 	# Print data to terminal, useful for debugging
+
+
+
+
 
 
 ##########################################################################
 ########################### Communication ################################
 ##########################################################################
-# The following lines define the serial port
+# The following lines define the serial port and UDP comms
 ##########################################################################
 
 ser=serial.Serial()
-ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac)
+ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
 ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
@@ -44,6 +66,8 @@ ser.writeTimeout=2
 timeMSP=0.02
 udp_ip = "localhost"
 udp_port = 51001
+sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+sock.bind((udp_ip, udp_port))
 
 
 ###############################
@@ -78,7 +102,8 @@ gz = 0
 magx = 0
 magy = 0
 magz = 0
-gp = 0
+udp_mess = 0
+numOfValues = 0
 
 
 #####################################################################
@@ -231,25 +256,25 @@ def RC(msp):
 		msp_hex = msp.encode("hex")
 
 		if msp_hex[10:14] == "":
-			print("roll unavailable")
+			#print("roll unavailable")
 			return
 		else:
 			roll = float(littleEndian(msp_hex[10:14]))
 
 		if msp_hex[14:18] == "":
-			print("pitch unavailable")
+			#print("pitch unavailable")
 			return
 		else:
 			pitch = float(littleEndian(msp_hex[14:18]))
 
 		if msp_hex[18:22] == "":
-			print("yaw unavailable")
+			#print("yaw unavailable")
 			return
 		else:
 			yaw = float(littleEndian(msp_hex[18:22]))
 
 		if msp_hex[22:26] == "":
-			print("throttle unavailable")
+			#print("throttle unavailable")
 			return
 		else:
 			throttle = float(littleEndian(msp_hex[22:26]))
@@ -280,25 +305,25 @@ def MOTORS(msp):
 		msp_hex = msp.encode("hex")
 
 		if msp_hex[10:14] == "":
-			print("motor 1 unavailable")
+			#print("motor 1 unavailable")
 			return
 		else:
 			m1 = float(littleEndian(msp_hex[10:14]))
 
 		if msp_hex[14:18] == "":
-			print("motor 2 unavailable")
+			#print("motor 2 unavailable")
 			return
 		else:
 			m2 = float(littleEndian(msp_hex[14:18]))
 
 		if msp_hex[18:22] == "":
-			print("motor 3 unavailable")
+			#print("motor 3 unavailable")
 			return
 		else:
 			m3 = float(littleEndian(msp_hex[18:22]))
 
 		if msp_hex[22:26] == "":
-			print("motor 4 unavailable")
+			#print("motor 4 unavailable")
 			return
 		else:
 			m4 = float(littleEndian(msp_hex[22:26]))
@@ -333,55 +358,55 @@ def RAW(msp):
 	else:
 		msp_hex = msp.encode("hex")
 		if msp_hex[10:14] == "":
-			print("ax unavailable")
+			#print("ax unavailable")
 			return
 		else:
 			ax = float(littleEndian(msp_hex[10:14]))
 		
 		if msp_hex[14:18] == "":
-			print("ay unavailable")
+			#print("ay unavailable")
 			return
 		else:
 			ay = float(littleEndian(msp_hex[14:18]))
 
 		if msp_hex[18:22] == "":
-			print("az unavailable")
+			#print("az unavailable")
 			return
 		else:
 			az = float(littleEndian(msp_hex[18:22]))
 
 		if msp_hex[22:26] == "":
-			print("gx unavailable")
+			#print("gx unavailable")
 			return
 		else:
 			gx = float(littleEndian(msp_hex[22:26]))
 		
 		if msp_hex[26:30] == "":
-			print("gy unavailable")
+			#print("gy unavailable")
 			return
 		else:
 			gy = float(littleEndian(msp_hex[26:30]))
 
 		if msp_hex[30:34] == "":
-			print("gz unavailable")
+			#print("gz unavailable")
 			return
 		else:
 			gz = float(littleEndian(msp_hex[30:34]))
 
 		if msp_hex[34:38] == "":
-			print("magx unavailable")
+			#print("magx unavailable")
 			return
 		else:
 			magx = float(littleEndian(msp_hex[34:38]))
 		
 		if msp_hex[38:42] == "":
-			print("magy unavailable")
+			#print("magy unavailable")
 			return
 		else:
 			magy = float(littleEndian(msp_hex[38:42]))
 
 		if msp_hex[42:46] == "":
-			print("magz unavailable")
+			#print("magz unavailable")
 			return
 		else:
 			magz = float(littleEndian(msp_hex[42:46]))
@@ -412,7 +437,7 @@ def sendData(data_length, code, data):
 		ser.flushInput()	# cleans out the serial port
 		ser.flushOutput()
 	except Exception, ex:
-		print 'send data is_valid_serial fail'
+		#print 'send data is_valid_serial fail'
 		multi_info['is_valid_serial'] = False;
 		connect()
 	return b
@@ -497,6 +522,8 @@ def askATT():
 #	returns:  nothing
 #############################################################
 def askRC():
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_RC)	# gets RC information
 	time.sleep(timeMSP)
 	response = ser.readline()
@@ -513,6 +540,8 @@ def askRC():
 #	returns:  nothing
 #############################################################
 def askALT():
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_ALTITUDE)	# gets ALTITUDE data
 	time.sleep(timeMSP)
 	response=ser.readline()
@@ -522,13 +551,15 @@ def askALT():
 
 
 #############################################################
-# askALT()
+# askMOTOR()
 #   receives: nothing
 #   outputs:  nothing
 #   function: Do everything to ask the MW for data and save it on globals 
 #   returns:  nothing
 #############################################################
 def askMOTOR():
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_MOTOR) # gets motors data
 	time.sleep(timeMSP)
 	response=ser.readline()
@@ -545,6 +576,8 @@ def askMOTOR():
 #   returns:  nothing
 #############################################################
 def askRAW():
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_RAW_IMU) # gets raw data
 	time.sleep(timeMSP)
 	response=ser.readline()
@@ -561,6 +594,11 @@ def askRAW():
 #   returns:  nothing
 #############################################################
 def getUDP():
+	global udp_mess
+	global numOfValues
+	data, addr = sock.recvfrom(1024)
+	numOfValues = len(data) / 8
+	udp_mess=struct.unpack('>' + 'd' * numOfValues, data)
 	return
 
 
@@ -572,7 +610,6 @@ def getUDP():
 #	outputs:  -
 #	function: opens serial port
 #		 loops msp commands
-#	function: calls print functions to output correct data
 ####################################################################
 def main():
 	global beginFlag
@@ -581,66 +618,72 @@ def main():
 
 	try:
 		ser.open()		# Opens the MultiWii serial port
-		sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-		sock.bind((udp_ip, udp_port))
 
 	except Exception,e:	# catches any errors with opening serial ports
 		print("Error open serial port: "+str(e))
 		exit()
 	
-	if ser.isOpen(): #& ser2.isOpen():
-		#time.sleep(13.2) 	# Exact time for Altitude data to become live.
+	if ser.isOpen():
 		time.sleep(14)		# Gives time for the MultiWii to calibrate and begin sending live info
-		#print("Serial port is open at"+ser.portstr)
-		st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d+%H-%M-%S')+".csv"
-		file = open("data/"+st, "w")
-		#timestamp = time.clock()
+
+		if drone.FILE:
+			st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d+%H-%M-%S')+".csv"
+			file = open("data/"+st, "w")
 		
 		try:
 			while True:
 		#########################################################################
 		# Loop
 		#########################################################################
-
 				#Start timing
-				#timestamp = time.clock()
 				timestamp = timeit.default_timer()
 
-				askATT()
-				#askRC()
-				#askALT()
-				#askMOTOR()
-				#askRAW()
-				data, addr = sock.recvfrom(1024)
-				gp = struct.unpack('d',data)
+				if drone.ATT:
+					askATT()
+				if drone.ALT:
+					askALT()
+				if drone.RC:
+					askRC()
+				if drone.MOT:
+					askMOTOR()
+				if drone.RAW:
+					askRAW()
+				if drone.UDP:
+					getUDP()
 
-				#time again after after getting all data
-				#error = (time.clock() - timestamp)*10
-				error = timeit.default_timer() - timestamp
-				#print '{0:.10f}'.format(error)
+				#Finish timing and save the time difference
+				diff = timeit.default_timer() - timestamp
 
 				if beginFlag != 1:	# Won't send any data until both altitude and heading are valid data
 					#Start adding all data to a variable
-					message = str(error)
+					if drone.TIME:
+						message = str(diff)
 					#save attitude
-					message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)+" "+str(gp[0])+" "+str(gp[1])
+					if drone.ATT:
+						message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)+" "+str(udp_mess[0])+" "+str(udp_mess[1])
 					#save pilot commands
-					#message = message+" "+str(roll)+" "+str(pitch)+" "+str(yaw)+" "+str(throttle)
+					if drone.RC:
+						message = message+" "+str(roll)+" "+str(pitch)+" "+str(yaw)+" "+str(throttle)
 					#save altitude
-					#message = message+" "+str(altitude)
+					if drone.ALT:
+						message = message+" "+str(altitude)
 					#save motors
-					#message = message+" "+str(m1)+" "+str(m2)+" "+str(m3)+" "+str(m4)
+					if drone.MOT:
+						message = message+" "+str(m1)+" "+str(m2)+" "+str(m3)+" "+str(m4)
 					#save raw
-					#message = message+" "+str(ax)+" "+str(ay)+" "+str(az)+" "+str(gx)+" "+str(gy)+" "+str(gz)+" "+str(magx)+" "+str(magy)+" "+str(magz)
-
-					#message = message+" "str(gp) 
-
+					if drone.RAW:
+						message = message+" "+str(ax)+" "+str(ay)+" "+str(az)+" "+str(gx)+" "+str(gy)+" "+str(gz)+" "+str(magx)+" "+str(magy)+" "+str(magz)
+					#save udp
+					if drone.UDP:
+						for x in range(0, numOfValues):
+							message = message+" "+str(udp_mess[x])
 					#print to terminal
-					print(message)	
-					# print in CSV
-					#file.write(message+"\n")
-					#send via UDP
-					#sock.sendto(message, (udp_ip, udp_port))
+					if drone.PRINT:
+						print(message)	
+					# print in CSV file
+					if drone.FILE:
+						file.write(message+"\n")
+
 				else:			# If invalid, continue looping
 					beginFlag = 0	# resets the flag
 			ser.close()
