@@ -31,13 +31,13 @@ import timeit
 class drone(object):
 	FILE 	=	0 	# Save to a timestamped file, the data selected below
 	TIME 	= 	1 	# Save the difference of time between all the main functions for perfomance logging
-	ATT 	= 	0 	# Ask and save the attitude of the multicopter
+	ATT 	= 	1 	# Ask and save the attitude of the multicopter
 	ALT 	= 	0 	# Ask and save the altitude of the multicopter
 	RC  	= 	0 	# Ask and save the pilot commands of the multicopter
 	MOT 	= 	0 	# Ask and save the PWM of the motors that the MW is writing to the multicopter
 	RAW 	= 	0 	# Ask and save the raw imu data of the multicopter
 	CMD 	= 	0 	# Send commands to the MW to control it
-	UDP 	=	1 	# Save or use UDP data (to be adjusted)
+	UDP 	=	0 	# Save or use UDP data (to be adjusted)
 	PRINT 	= 	1 	# Print data to terminal, useful for debugging
 
 
@@ -52,7 +52,8 @@ class drone(object):
 ##########################################################################
 
 ser=serial.Serial()
-ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac)
+#ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
+ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
 ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
@@ -660,7 +661,7 @@ def main():
 						message = str(diff)
 					#save attitude
 					if drone.ATT:
-						message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)+" "+str(udp_mess[0])+" "+str(udp_mess[1])
+						message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)
 					#save pilot commands
 					if drone.RC:
 						message = message+" "+str(roll)+" "+str(pitch)+" "+str(yaw)+" "+str(throttle)
@@ -690,7 +691,7 @@ def main():
 			file.close()
 		
 		except Exception,e1:	# Catches any errors in the serial communication
-			print("Error communicating..."+str(e1))
+			print("Error on main: "+str(e1))
 	else:
 		print("Cannot open serial port")
 
