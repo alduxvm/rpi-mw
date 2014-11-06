@@ -20,6 +20,8 @@ import time		# for wait commands
 import datetime	# for current time
 import struct
 import timeit
+import asyncore
+import threading
 
 
 ##########################################################################
@@ -37,11 +39,8 @@ class drone(object):
 	MOT 	= 	0 	# Ask and save the PWM of the motors that the MW is writing to the multicopter
 	RAW 	= 	0 	# Ask and save the raw imu data of the multicopter
 	CMD 	= 	0 	# Send commands to the MW to control it
-	UDP 	=	0 	# Save or use UDP data (to be adjusted)
+	UDP 	=	1 	# Save or use UDP data (to be adjusted)
 	PRINT 	= 	1 	# Print data to terminal, useful for debugging
-
-
-
 
 
 
@@ -52,8 +51,8 @@ class drone(object):
 ##########################################################################
 
 ser=serial.Serial()
-#ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
-ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
+ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
+#ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
 ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
@@ -67,8 +66,8 @@ ser.writeTimeout=2
 timeMSP=0.02
 udp_ip = "localhost"
 udp_port = 51001
-sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-sock.bind((udp_ip, udp_port))
+#sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+#sock.bind((udp_ip, udp_port))
 
 
 ###############################
@@ -93,7 +92,7 @@ m1 = 0
 m2 = 0
 m3 = 0
 m4 = 0
-message = " "
+message = ""
 ax = 0
 ay = 0
 az = 0
@@ -103,8 +102,39 @@ gz = 0
 magx = 0
 magy = 0
 magz = 0
-udp_mess = 0
+udp_mess = ""
 numOfValues = 0
+
+
+##########################################################################
+################################## UDP ###################################
+##########################################################################
+# Class for the async UDP server
+##########################################################################
+class AsyncoreServerUDP(asyncore.dispatcher):
+	def __init__(self):
+ 		asyncore.dispatcher.__init__(self)
+		self.create_socket(socket.AF_INET, socket.SOCK_DGRAM)
+		self.bind((udp_ip, udp_port))
+	
+	# Even though UDP is connectionless this is called when it binds to a port
+	def handle_connect(self):
+		print "Server Started..."
+	
+	# This is called everytime there is something to read
+	def handle_read(self):
+		global udp_mess
+		udp_mess=""
+		data, addr = self.recvfrom(2048)
+		numOfValues = len(data) / 8
+		mess=struct.unpack('>' + 'd' * numOfValues, data)
+		for x in range(0, numOfValues):
+ 			udp_mess = udp_mess+" "+str(mess[x])
+
+   # This is called all the time and causes errors if you leave it out.
+	def handle_write(self):
+ 		pass
+
 
 
 #####################################################################
@@ -615,7 +645,11 @@ def getUDP():
 def main():
 	global beginFlag
 
-	print ("Beginning in 14 seconds...")
+	print ("Beginning UDP server...")
+	AsyncoreServerUDP()
+	loop_thread = threading.Thread(target=asyncore.loop, name="Asyncore Loop")
+	loop_thread.start()
+	print ("Beginning Multiwii - wait 14 seconds...")
 
 	try:
 		ser.open()		# Opens the MultiWii serial port
@@ -649,8 +683,8 @@ def main():
 					askMOTOR()
 				if drone.RAW:
 					askRAW()
-				if drone.UDP:
-					getUDP()
+				#if drone.UDP:
+					#getUDP()
 
 				#Finish timing and save the time difference
 				diff = timeit.default_timer() - timestamp
@@ -676,8 +710,7 @@ def main():
 						message = message+" "+str(ax)+" "+str(ay)+" "+str(az)+" "+str(gx)+" "+str(gy)+" "+str(gz)+" "+str(magx)+" "+str(magy)+" "+str(magz)
 					#save udp
 					if drone.UDP:
-						for x in range(0, numOfValues):
-							message = message+" "+str(udp_mess[x])
+						message = message+" "+udp_mess
 					#print to terminal
 					if drone.PRINT:
 						print(message)	
