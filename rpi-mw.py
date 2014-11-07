@@ -51,8 +51,8 @@ class drone(object):
 ##########################################################################
 
 ser=serial.Serial()
-ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
-#ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
+#ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
+ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
 ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
@@ -103,6 +103,7 @@ magx = 0
 magy = 0
 magz = 0
 udp_mess = ""
+udp_mess2 = ""
 numOfValues = 0
 
 
@@ -123,13 +124,15 @@ class AsyncoreServerUDP(asyncore.dispatcher):
 	
 	# This is called everytime there is something to read
 	def handle_read(self):
-		global udp_mess
+		global udp_mess 
+		global udp_mess2
 		udp_mess=""
 		data, addr = self.recvfrom(2048)
 		numOfValues = len(data) / 8
 		mess=struct.unpack('>' + 'd' * numOfValues, data)
 		for x in range(0, numOfValues):
  			udp_mess = udp_mess+" "+str(mess[x])
+ 		udp_mess2=udp_mess
 
    # This is called all the time and causes errors if you leave it out.
 	def handle_write(self):
@@ -644,6 +647,7 @@ def getUDP():
 ####################################################################
 def main():
 	global beginFlag
+	global udp_mess2 #Need to be able to modify the value of this variable
 
 	print ("Beginning UDP server...")
 	AsyncoreServerUDP()
@@ -710,6 +714,9 @@ def main():
 						message = message+" "+str(ax)+" "+str(ay)+" "+str(az)+" "+str(gx)+" "+str(gy)+" "+str(gz)+" "+str(magx)+" "+str(magy)+" "+str(magz)
 					#save udp
 					if drone.UDP:
+						if udp_mess == "":
+							message = message+" "+udp_mess2
+							udp_mess2=""
 						message = message+" "+udp_mess
 					#print to terminal
 					if drone.PRINT:
