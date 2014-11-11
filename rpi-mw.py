@@ -13,15 +13,15 @@
 ########################################################################
 
 
-import serial	# for serial communication
-import sys		# for user input
-import socket	# for UDP communication
-import time		# for wait commands
-import datetime	# for current time
-import struct
-import timeit
-import asyncore
-import threading
+import serial		# for serial communication
+import sys			# for user input
+import socket		# for UDP communication
+import time			# for wait commands
+import datetime		# for current time
+import struct		# for decoding data strings
+import timeit		# for current time
+import asyncore 	# for asynchornous udp comm
+import threading 	# for using threads
 
 
 ##########################################################################
@@ -40,6 +40,8 @@ class drone(object):
 	RAW 	= 	0 	# Ask and save the raw imu data of the multicopter
 	CMD 	= 	0 	# Send commands to the MW to control it
 	UDP 	=	1 	# Save or use UDP data (to be adjusted)
+	ASY 	=	0 	# Use async communicacion
+	SCK 	=	1 	# Use regular socket communication
 	PRINT 	= 	1 	# Print data to terminal, useful for debugging
 
 
@@ -64,10 +66,13 @@ ser.rtscts=False
 ser.dsrdtr=False
 ser.writeTimeout=2
 timeMSP=0.02
-udp_ip = "localhost"
+#Raspberry pie IP address
+#udp_ip = "172.30.142.254"
+#Mac IP address
+udp_ip = "130.209.27.59"
+#udp_ip = "localhost"
 udp_port = 51001
-#sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-#sock.bind((udp_ip, udp_port))
+sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 
 
 ###############################
@@ -127,7 +132,7 @@ class AsyncoreServerUDP(asyncore.dispatcher):
 		global udp_mess 
 		global udp_mess2
 		udp_mess=""
-		data, addr = self.recvfrom(2048)
+		data, addr = self.recvfrom(1024)
 		numOfValues = len(data) / 8
 		mess=struct.unpack('>' + 'd' * numOfValues, data)
 		for x in range(0, numOfValues):
@@ -628,12 +633,15 @@ def askRAW():
 #   returns:  nothing
 #############################################################
 def getUDP():
-	global udp_mess
-	global numOfValues
+	global udp_mess 
+	global udp_mess2
+	udp_mess=""
 	data, addr = sock.recvfrom(1024)
 	numOfValues = len(data) / 8
-	udp_mess=struct.unpack('>' + 'd' * numOfValues, data)
-	return
+	mess=struct.unpack('>' + 'd' * numOfValues, data)
+	for x in range(0, numOfValues):
+ 		udp_mess = udp_mess+" "+str(mess[x])
+ 	udp_mess2=udp_mess
 
 
 ####################################################################
@@ -649,10 +657,14 @@ def main():
 	global beginFlag
 	global udp_mess2 #Need to be able to modify the value of this variable
 
-	print ("Beginning UDP server...")
-	AsyncoreServerUDP()
-	loop_thread = threading.Thread(target=asyncore.loop, name="Asyncore Loop")
-	loop_thread.start()
+	if drone.ASY:
+		print ("Beginning Asyncore UDP server on ")+str(udp_ip)
+		AsyncoreServerUDP()
+		loop_thread = threading.Thread(target=asyncore.loop, name="Asyncore Loop")
+		loop_thread.start()
+	if drone.SCK:
+		print ("Beginning regular UDP server on ")+str(udp_ip)
+		sock.bind((udp_ip, udp_port))
 	print ("Beginning Multiwii - wait 14 seconds...")
 
 	try:
@@ -687,8 +699,8 @@ def main():
 					askMOTOR()
 				if drone.RAW:
 					askRAW()
-				#if drone.UDP:
-					#getUDP()
+				if drone.UDP:
+					getUDP()
 
 				#Finish timing and save the time difference
 				diff = timeit.default_timer() - timestamp
