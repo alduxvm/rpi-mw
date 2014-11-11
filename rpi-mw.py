@@ -699,7 +699,7 @@ def main():
 					askMOTOR()
 				if drone.RAW:
 					askRAW()
-				if drone.UDP:
+				if drone.SCK:
 					getUDP()
 
 				#Finish timing and save the time difference
