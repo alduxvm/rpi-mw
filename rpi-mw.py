@@ -21,6 +21,7 @@ import datetime		# for current time
 import struct		# for decoding data strings
 import timeit		# for current time
 import asyncore 	# for asynchornous udp comm
+import SocketServer # for socketserver udp comm
 import threading 	# for using threads
 
 
@@ -33,16 +34,17 @@ import threading 	# for using threads
 class drone(object):
 	FILE 	=	0 	# Save to a timestamped file, the data selected below
 	TIME 	= 	1 	# Save the difference of time between all the main functions for perfomance logging
-	ATT 	= 	1 	# Ask and save the attitude of the multicopter
+	ATT 	= 	0 	# Ask and save the attitude of the multicopter
 	ALT 	= 	0 	# Ask and save the altitude of the multicopter
 	RC  	= 	0 	# Ask and save the pilot commands of the multicopter
 	MOT 	= 	0 	# Ask and save the PWM of the motors that the MW is writing to the multicopter
 	RAW 	= 	0 	# Ask and save the raw imu data of the multicopter
-	CMD 	= 	0 	# Send commands to the MW to control it
+	CMD 	= 	1 	# Send commands to the MW to control it
 	UDP 	=	1 	# Save or use UDP data (to be adjusted)
 	ASY 	=	0 	# Use async communicacion
-	SCK 	=	1 	# Use regular socket communication
-	PRINT 	= 	1 	# Print data to terminal, useful for debugging
+	SCK 	=	0 	# Use regular socket communication
+	SCKSRV 	=	1 	# Use socketserver communication
+	PRINT 	= 	0 	# Print data to terminal, useful for debugging
 
 
 
@@ -53,10 +55,10 @@ class drone(object):
 ##########################################################################
 
 ser=serial.Serial()
-#ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
-ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
+ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
+#ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
-ser.baudrate=115200
+ser.baudrate=1000000
 ser.bytesize=serial.EIGHTBITS
 ser.parity=serial.PARITY_NONE
 ser.stopbits=serial.STOPBITS_ONE
@@ -69,8 +71,8 @@ timeMSP=0.02
 #Raspberry pie IP address
 #udp_ip = "172.30.142.254"
 #Mac IP address
-udp_ip = "130.209.27.59"
-#udp_ip = "localhost"
+#udp_ip = "130.209.27.59"
+udp_ip = "localhost"
 udp_port = 51001
 sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 
@@ -110,6 +112,8 @@ magz = 0
 udp_mess = ""
 udp_mess2 = ""
 numOfValues = 0
+precision = 2
+rcData = [1500, 1500, 1500, 1000] #order -> roll, pitch, yaw, throttle
 
 
 ##########################################################################
@@ -143,6 +147,34 @@ class AsyncoreServerUDP(asyncore.dispatcher):
 	def handle_write(self):
  		pass
 
+
+##########################################################################
+################################## UDP ###################################
+##########################################################################
+# Class for the socketserver 
+##########################################################################
+class SocketServerHandler(SocketServer.BaseRequestHandler):
+
+	def handle(self):
+		global udp_mess 
+		global udp_mess2
+		global rcData
+		udp_mess=""
+		numOfValues=0
+		timestamp = time.time()
+		data = self.request[0].strip()
+		socket = self.request[1]
+		try:
+			numOfValues = len(data) / 8
+			mess=struct.unpack('>' + 'd' * numOfValues, data)
+			for x in range(0, numOfValues):
+ 				udp_mess = udp_mess+" "+str(mess[x])
+ 			for x in range(0,3):
+ 				if mess[x] is not None:
+ 					rcData[x]=mess[x]
+ 			udp_mess2=udp_mess
+		except Exception,error:
+			print "SocketServer: "+str(error)
 
 
 #####################################################################
@@ -473,12 +505,10 @@ def sendData(data_length, code, data):
 	try:
 		b = None
 		b = ser.write(struct.pack('<3c2B%dhB' % len(data), *total_data))
-		ser.flushInput()	# cleans out the serial port
-		ser.flushOutput()
+		#ser.flushInput()	# cleans out the serial port
+		#ser.flushOutput()
 	except Exception, ex:
-		#print 'send data is_valid_serial fail'
-		multi_info['is_valid_serial'] = False;
-		connect()
+		print 'send data error'
 	return b
 
 
@@ -549,8 +579,6 @@ def askATT():
 	time.sleep(timeMSP)	# gives adaquate time between MSP TX & RX
 	response=ser.readline()	# reads MSP response
 	ATTITUDE(response)	# sends to ATTITUDE to parse and update global variables
-	ser.flushInput()	# cleans out the serial port
-	ser.flushOutput()	
 
 
 #############################################################
@@ -567,8 +595,6 @@ def askRC():
 	time.sleep(timeMSP)
 	response = ser.readline()
 	RC(response)
-	ser.flushInput();
-	ser.flushOutput();	
 
 
 #############################################################
@@ -585,8 +611,6 @@ def askALT():
 	time.sleep(timeMSP)
 	response=ser.readline()
 	ALTITUDE(response)
-	ser.flushInput()
-	ser.flushOutput()
 
 
 #############################################################
@@ -603,8 +627,6 @@ def askMOTOR():
 	time.sleep(timeMSP)
 	response=ser.readline()
 	MOTORS(response)
-	ser.flushInput()
-	ser.flushOutput()
 
 
 #############################################################
@@ -621,8 +643,6 @@ def askRAW():
 	time.sleep(timeMSP)
 	response=ser.readline()
 	RAW(response)
-	ser.flushInput()
-	ser.flushOutput()
 
 
 #############################################################
@@ -642,6 +662,18 @@ def getUDP():
 	for x in range(0, numOfValues):
  		udp_mess = udp_mess+" "+str(mess[x])
  	udp_mess2=udp_mess
+
+
+#############################################################
+# SetRC()
+#   receives: nothing
+#   outputs:  nothing
+#   function: Sends RC raw data to Multiwii 
+#   returns:  nothing
+#############################################################
+def setRC():
+	rcData = [ int(x) for x in rcData ]
+	print rcData
 
 
 ####################################################################
@@ -665,6 +697,12 @@ def main():
 	if drone.SCK:
 		print ("Beginning regular UDP server on ")+str(udp_ip)
 		sock.bind((udp_ip, udp_port))
+	if drone.SCKSRV:
+		print ("Beginning UDP socketserver on ")+str(udp_ip)
+		server = SocketServer.UDPServer((udp_ip, udp_port), SocketServerHandler)
+		loop_thread = threading.Thread(target=server.serve_forever, name="SocketServer Loop")
+		loop_thread.start()
+
 	print ("Beginning Multiwii - wait 14 seconds...")
 
 	try:
@@ -689,6 +727,8 @@ def main():
 				#Start timing
 				timestamp = timeit.default_timer()
 
+				if drone.CMD and drone.UDP:
+					setRC()
 				if drone.ATT:
 					askATT()
 				if drone.ALT:
@@ -708,7 +748,7 @@ def main():
 				if beginFlag != 1:	# Won't send any data until both altitude and heading are valid data
 					#Start adding all data to a variable
 					if drone.TIME:
-						message = str(diff)
+						message = str(round(diff,precision))
 					#save attitude
 					if drone.ATT:
 						message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)
