@@ -34,17 +34,18 @@ import threading 	# for using threads
 class drone(object):
 	FILE 	=	0 	# Save to a timestamped file, the data selected below
 	TIME 	= 	1 	# Save the difference of time between all the main functions for perfomance logging
+	FLYT 	= 	1 	# Save the flight time in seconds
 	ATT 	= 	0 	# Ask and save the attitude of the multicopter
 	ALT 	= 	0 	# Ask and save the altitude of the multicopter
-	RC  	= 	0 	# Ask and save the pilot commands of the multicopter
+	RC  	= 	1 	# Ask and save the pilot commands of the multicopter
 	MOT 	= 	0 	# Ask and save the PWM of the motors that the MW is writing to the multicopter
-	RAW 	= 	0 	# Ask and save the raw imu data of the multicopter
-	CMD 	= 	1 	# Send commands to the MW to control it
-	UDP 	=	1 	# Save or use UDP data (to be adjusted)
+	RAW 	= 	1 	# Ask and save the raw imu data of the multicopter
+	CMD 	= 	0 	# Send commands to the MW to control it
+	UDP 	=	0 	# Save or use UDP data (to be adjusted)
 	ASY 	=	0 	# Use async communicacion
 	SCK 	=	0 	# Use regular socket communication
-	SCKSRV 	=	1 	# Use socketserver communication
-	PRINT 	= 	0 	# Print data to terminal, useful for debugging
+	SCKSRV 	=	0 	# Use socketserver communication
+	PRINT 	= 	1 	# Print data to terminal, useful for debugging
 
 
 
@@ -55,10 +56,10 @@ class drone(object):
 ##########################################################################
 
 ser=serial.Serial()
-ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
-#ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
+#ser.port="/dev/tty.usbserial-AM016WP4"	# This is the port that the MultiWii is attached to (for mac & MW home)
+ser.port="/dev/tty.usbserial-A101CCVF"	# This is the port that the MultiWii is attached to (for mac & MW office)
 #ser.port="/dev/ttyUSB0"	# This is the port that the MultiWii is attached to (for raspberry pie)
-ser.baudrate=1000000
+ser.baudrate=115200
 ser.bytesize=serial.EIGHTBITS
 ser.parity=serial.PARITY_NONE
 ser.stopbits=serial.STOPBITS_ONE
@@ -69,10 +70,10 @@ ser.dsrdtr=False
 ser.writeTimeout=2
 timeMSP=0.02
 #Raspberry pie IP address
-#udp_ip = "172.30.142.254"
+udp_ip = "172.30.150.170"
 #Mac IP address
 #udp_ip = "130.209.27.59"
-udp_ip = "localhost"
+#udp_ip = "localhost"
 udp_port = 51001
 sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
 
@@ -109,6 +110,8 @@ gz = 0
 magx = 0
 magy = 0
 magz = 0
+elapsed = 0
+flytime = 0
 udp_mess = ""
 udp_mess2 = ""
 numOfValues = 0
@@ -174,7 +177,8 @@ class SocketServerHandler(SocketServer.BaseRequestHandler):
  					rcData[x]=mess[x]
  			udp_mess2=udp_mess
 		except Exception,error:
-			print "SocketServer: "+str(error)
+			#print "SocketServer: "+str(error)
+			pass
 
 
 #####################################################################
@@ -718,6 +722,8 @@ def main():
 		if drone.FILE:
 			st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d+%H-%M-%S')+".csv"
 			file = open("data/"+st, "w")
+		if drone.FLYT:
+			flytime = timeit.default_timer()
 		
 		try:
 			while True:
@@ -744,11 +750,15 @@ def main():
 
 				#Finish timing and save the time difference
 				diff = timeit.default_timer() - timestamp
+				elapsed = timeit.default_timer() - flytime
 
 				if beginFlag != 1:	# Won't send any data until both altitude and heading are valid data
 					#Start adding all data to a variable
 					if drone.TIME:
 						message = str(round(diff,precision))
+					#Save elapsed time
+					if drone.FLYT:
+						message = message+" "+str(elapsed)
 					#save attitude
 					if drone.ATT:
 						message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)
