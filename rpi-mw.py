@@ -35,11 +35,11 @@ class drone(object):
 	FILE 	=	0 	# Save to a timestamped file, the data selected below
 	TIME 	= 	1 	# Save the difference of time between all the main functions for perfomance logging
 	FLYT 	= 	1 	# Save the flight time in seconds
-	ATT 	= 	0 	# Ask and save the attitude of the multicopter
+	ATT 	= 	1 	# Ask and save the attitude of the multicopter
 	ALT 	= 	0 	# Ask and save the altitude of the multicopter
-	RC  	= 	1 	# Ask and save the pilot commands of the multicopter
+	RC  	= 	0 	# Ask and save the pilot commands of the multicopter
 	MOT 	= 	0 	# Ask and save the PWM of the motors that the MW is writing to the multicopter
-	RAW 	= 	1 	# Ask and save the raw imu data of the multicopter
+	RAW 	= 	0 	# Ask and save the raw imu data of the multicopter
 	CMD 	= 	0 	# Send commands to the MW to control it
 	UDP 	=	0 	# Save or use UDP data (to be adjusted)
 	ASY 	=	0 	# Use async communicacion
@@ -76,6 +76,7 @@ udp_ip = "172.30.150.170"
 #udp_ip = "localhost"
 udp_port = 51001
 sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+wakeUp = 8
 
 
 ###############################
@@ -126,7 +127,7 @@ rcData = [1500, 1500, 1500, 1000] #order -> roll, pitch, yaw, throttle
 ##########################################################################
 class AsyncoreServerUDP(asyncore.dispatcher):
 	def __init__(self):
- 		asyncore.dispatcher.__init__(self)
+		asyncore.dispatcher.__init__(self)
 		self.create_socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self.bind((udp_ip, udp_port))
 	
@@ -143,12 +144,12 @@ class AsyncoreServerUDP(asyncore.dispatcher):
 		numOfValues = len(data) / 8
 		mess=struct.unpack('>' + 'd' * numOfValues, data)
 		for x in range(0, numOfValues):
- 			udp_mess = udp_mess+" "+str(mess[x])
- 		udp_mess2=udp_mess
+			udp_mess = udp_mess+" "+str(mess[x])
+		udp_mess2=udp_mess
 
    # This is called all the time and causes errors if you leave it out.
 	def handle_write(self):
- 		pass
+		pass
 
 
 ##########################################################################
@@ -171,11 +172,11 @@ class SocketServerHandler(SocketServer.BaseRequestHandler):
 			numOfValues = len(data) / 8
 			mess=struct.unpack('>' + 'd' * numOfValues, data)
 			for x in range(0, numOfValues):
- 				udp_mess = udp_mess+" "+str(mess[x])
- 			for x in range(0,3):
- 				if mess[x] is not None:
- 					rcData[x]=mess[x]
- 			udp_mess2=udp_mess
+				udp_mess = udp_mess+" "+str(mess[x])
+			for x in range(0,3):
+				if mess[x] is not None:
+					rcData[x]=mess[x]
+			udp_mess2=udp_mess
 		except Exception,error:
 			#print "SocketServer: "+str(error)
 			pass
@@ -524,35 +525,38 @@ msp_dict={
 	'MSP_CONTROL': [16, 14, '='+'h'*8, '='+'h'*7, [0.1, 0.1, -1., 1., 1., 1., 1.]]}
 
 
-def receiveData():
-	S_END=0
-	S_HEADER=1
-	S_SIZE=2
-	S_CMD=3
-	S_DATA=4
-	S_CHECKSUM=5
-	S_ERROR=6
+S_END=0
+S_HEADER=1
+S_SIZE=2
+S_CMD=3
+S_DATA=4
+S_CHECKSUM=5
+S_ERROR=6
 
+def receiveData():
+	global roll
+	global pitch
+	global yaw
+	global throttle
 	data_to_read=1
 	state=S_HEADER
 	checksum=0
 	input_packet=''
 	while (state!=S_END) and (state!=S_ERROR):
-		#print "in waiting", self.ser.inWaiting()
-	#print "Data to read", data_to_read
+		#print "Data to read", data_to_read
 		c=ser.read(data_to_read)
 		input_packet+=c
-		print "c: ", map(str,c), map(ord,c)
+		#print "c: ", map(str,c), map(ord,c)
 		if state==S_HEADER:
 			if c=='$':
 				c=ser.read(2)
 				input_packet+=c
-			#print "c: ", map(str,c), map(ord,c)
+				#print "c: ", map(str,c), map(ord,c)
 				if c=='M>':
-				#print "header received"
+					#print "header received"
 					state=S_SIZE
 				else:
-					print "Error in header1"
+					#print "Error in header1"
 					state=S_ERROR
 			else:
 				#print "Error: No header received"
@@ -561,14 +565,13 @@ def receiveData():
 			data_size=c
 			checksum^=ord(data_size)
 			state=S_CMD
-		#print "Data size: ", ord(data_size)
+			#print "Data size: ", ord(data_size)
 		elif state==S_CMD:
 			cmd=c
 			checksum^=ord(cmd)
 			if ord(data_size)==0:
 				data_to_read=1
 				state=S_CHECKSUM
-				data_raw=''
 			else:
 				data_to_read=ord(data_size)
 				state=S_DATA
@@ -580,36 +583,39 @@ def receiveData():
 			state=S_CHECKSUM
 			data_to_read=1
 		elif state==S_CHECKSUM:
-		#print "Calculated checksum: ", checksum, " Received checksum: ", ord(c)
+			#print "Calculated checksum: ", checksum, " Received checksum: ", ord(c)
 			if checksum!=ord(c):
-				print("Error in checksum")
+				#print "Error in checksum"
 				state=S_ERROR
 			else:
 				#print "Checksum is right"
 				state=S_END
 	if state==S_END:
 		error=0
-		if len(data_raw)!= msp_dict[ord(cmd)][1]:
-			print("Error: incorrect response size! Got:", len(data_raw), " should be:", msp_dict[ord(cmd)][1])
-			return((-1,[]))
-		#print "Cmd", ord(cmd)
-		#print "Raw data", data_raw, "test"
-		if msp_dict[ord(cmd)][1]!=0:
-			  #data=unraw_data(data_raw, msp_dict[ord(cmd)][3])
-			  data=struct.unpack(msp_dict[ord(cmd)][3],data_raw)
-			  if len(msp_dict[ord(cmd)])>=5:
-				  data=[i*mult for i, mult in zip(msp_dict[ord(cmd)][4], data)]
+		if ord(cmd)==105:
+			#for i in xrange(len(data_raw)/2):
+			#    print ord(data_raw[2*i]), ord(data_raw[2*i+1])
+			#    print (ord(data_raw[2*i])<<0) | (ord(data_raw[2*i+1]) << 8)
+			data=[(ord(data_raw[2*i])) | (ord(data_raw[2*i+1])<<8) for i in xrange(len(data_raw)/2)]
+			roll=data[0]
+			pitch=data[0]
+			yaw=data[0]
+			throttle=data[0]
+			#print "Data: ", data
+		elif ord(cmd)==MSP_RAW_IMU:
+			data=[(ord(data_raw[2*i])) | (ord(data_raw[2*i+1])<<8) for i in xrange(len(data_raw)/2)]
+			#print "Data: ", data
+		elif ord(cmd)==MSP_SET_RAW_RC:
+			data=[]
 		else:
-			  data=[]
-		#os.write(master,input_packet)
+			data=[]
 	else: #error
-		print("input_packet: ", input_packet, map(ord, input_packet))
+		#print "input_packet: ", input_packet, map(ord, input_packet)
 		data=[]
-		cmd=chr(0)
 		error=1
 		ser.flushInput()
-	return((error,[ord(cmd),data]))
 
+	return((error,data))
 
 #############################################################
 # littleEndian(value)
@@ -674,9 +680,11 @@ def twosComp(hexValue):
 def askATT():
 	#ser.flushInput()	# cleans out the serial port
 	#ser.flushOutput()
-	ser.write(MSP_ATTITUDE)	# sends MSP request
-	error,cmd_resp=receiveData()
-	print cmd_resp
+	ser.write(MSP_RC)	# sends MSP request
+	try:
+		error,cmd_resp=receiveData()
+	except Exception, error:
+		pass
 	#ATTITUDE(response)	# sends to ATTITUDE to parse and update global variables
 
 
@@ -783,8 +791,8 @@ def getUDP():
 	numOfValues = len(data) / 8
 	mess=struct.unpack('>' + 'd' * numOfValues, data)
 	for x in range(0, numOfValues):
- 		udp_mess = udp_mess+" "+str(mess[x])
- 	udp_mess2=udp_mess
+		udp_mess = udp_mess+" "+str(mess[x])
+	udp_mess2=udp_mess
 
 
 #############################################################
@@ -836,7 +844,7 @@ def main():
 		exit()
 	
 	if ser.isOpen():
-		time.sleep(14)		# Gives time for the MultiWii to calibrate and begin sending live info
+		time.sleep(wakeUp)		# Gives time for the MultiWii to calibrate and begin sending live info
 
 		if drone.FILE:
 			st = datetime.datetime.fromtimestamp(time.time()).strftime('%Y_%m_%d+%H-%M-%S')+".csv"
