@@ -516,101 +516,6 @@ def sendData(data_length, code, data):
 	return b
 
 
-msp_dict={
-	'MSP_RC': [0, 16, '', '='+'h'*8],
-	'MSP_ATTITUDE': [0, 8, '', '='+'h'*4],
-	'MSP_ALTITUDE': [0, 6, '', '=ih', [0.01, 1.]],
-	'MSP_STATUS': [0, 11, '', '='+'hhhIB'],
-	'MSP_CONTROL': [16, 14, '='+'h'*8, '='+'h'*7, [0.1, 0.1, -1., 1., 1., 1., 1.]]}
-
-
-def receiveData():
-	S_END=0
-	S_HEADER=1
-	S_SIZE=2
-	S_CMD=3
-	S_DATA=4
-	S_CHECKSUM=5
-	S_ERROR=6
-
-	data_to_read=1
-	state=S_HEADER
-	checksum=0
-	input_packet=''
-	while (state!=S_END) and (state!=S_ERROR):
-		#print "in waiting", self.ser.inWaiting()
-	#print "Data to read", data_to_read
-		c=ser.read(data_to_read)
-		input_packet+=c
-		print "c: ", map(str,c), map(ord,c)
-		if state==S_HEADER:
-			if c=='$':
-				c=ser.read(2)
-				input_packet+=c
-			#print "c: ", map(str,c), map(ord,c)
-				if c=='M>':
-				#print "header received"
-					state=S_SIZE
-				else:
-					print "Error in header1"
-					state=S_ERROR
-			else:
-				#print "Error: No header received"
-				state=S_ERROR
-		elif state==S_SIZE:
-			data_size=c
-			checksum^=ord(data_size)
-			state=S_CMD
-		#print "Data size: ", ord(data_size)
-		elif state==S_CMD:
-			cmd=c
-			checksum^=ord(cmd)
-			if ord(data_size)==0:
-				data_to_read=1
-				state=S_CHECKSUM
-				data_raw=''
-			else:
-				data_to_read=ord(data_size)
-				state=S_DATA
-			#print "Command: ", ord(cmd)
-		elif state==S_DATA:
-			data_raw=c
-			#print "Data received", map(ord,data_raw)
-			checksum^=reduce(lambda x,y:x^y, map(ord,data_raw))
-			state=S_CHECKSUM
-			data_to_read=1
-		elif state==S_CHECKSUM:
-		#print "Calculated checksum: ", checksum, " Received checksum: ", ord(c)
-			if checksum!=ord(c):
-				print("Error in checksum")
-				state=S_ERROR
-			else:
-				#print "Checksum is right"
-				state=S_END
-	if state==S_END:
-		error=0
-		if len(data_raw)!= msp_dict[ord(cmd)][1]:
-			print("Error: incorrect response size! Got:", len(data_raw), " should be:", msp_dict[ord(cmd)][1])
-			return((-1,[]))
-		#print "Cmd", ord(cmd)
-		#print "Raw data", data_raw, "test"
-		if msp_dict[ord(cmd)][1]!=0:
-			  #data=unraw_data(data_raw, msp_dict[ord(cmd)][3])
-			  data=struct.unpack(msp_dict[ord(cmd)][3],data_raw)
-			  if len(msp_dict[ord(cmd)])>=5:
-				  data=[i*mult for i, mult in zip(msp_dict[ord(cmd)][4], data)]
-		else:
-			  data=[]
-		#os.write(master,input_packet)
-	else: #error
-		print("input_packet: ", input_packet, map(ord, input_packet))
-		data=[]
-		cmd=chr(0)
-		error=1
-		ser.flushInput()
-	return((error,[ord(cmd),data]))
-
-
 #############################################################
 # littleEndian(value)
 #	receives: a parsed, hex data piece
@@ -672,12 +577,12 @@ def twosComp(hexValue):
 #	returns:  nothing
 #############################################################
 def askATT():
-	#ser.flushInput()	# cleans out the serial port
-	#ser.flushOutput()
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_ATTITUDE)	# sends MSP request
-	error,cmd_resp=receiveData()
-	print cmd_resp
-	#ATTITUDE(response)	# sends to ATTITUDE to parse and update global variables
+	time.sleep(timeMSP)	# gives adaquate time between MSP TX & RX
+	response=ser.readline()	# reads MSP response
+	ATTITUDE(response)	# sends to ATTITUDE to parse and update global variables
 
 
 #############################################################
@@ -688,18 +593,11 @@ def askATT():
 #	returns:  nothing
 #############################################################
 def askRC():
-	#ser.flushInput()	# cleans out the serial port
-	#ser.flushOutput()
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_RC)	# gets RC information
 	time.sleep(timeMSP)
 	response = ser.readline()
-	#while True:
-	#	response = ser.readline()
-	#	try:
-	#		if response[0] == '$':
-	#			break
-	#	except:
-	#		pass
 	RC(response)
 
 
@@ -711,16 +609,11 @@ def askRC():
 #	returns:  nothing
 #############################################################
 def askALT():
-	#ser.flushInput()	# cleans out the serial port
-	#ser.flushOutput()
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_ALTITUDE)	# gets ALTITUDE data
-	while True:
-		response = ser.readline()
-		try:
-			if response[0] == '$':
-				break
-		except:
-			pass
+	time.sleep(timeMSP)
+	response=ser.readline()
 	ALTITUDE(response)
 
 
@@ -732,16 +625,11 @@ def askALT():
 #   returns:  nothing
 #############################################################
 def askMOTOR():
-	#ser.flushInput()	# cleans out the serial port
-	#ser.flushOutput()
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_MOTOR) # gets motors data
-	while True:
-		response = ser.readline()
-		try:
-			if response[0] == '$':
-				break
-		except:
-			pass
+	time.sleep(timeMSP)
+	response=ser.readline()
 	MOTORS(response)
 
 
@@ -753,18 +641,11 @@ def askMOTOR():
 #   returns:  nothing
 #############################################################
 def askRAW():
-	#ser.flushInput()	# cleans out the serial port
-	#ser.flushOutput()
+	ser.flushInput()	# cleans out the serial port
+	ser.flushOutput()
 	ser.write(MSP_RAW_IMU) # gets raw data
 	time.sleep(timeMSP)
-	response = ser.readline()
-	#while True:
-	#	response = ser.readline()
-	#	try:
-	#		if response[0] == '$':
-	#			break
-	#	except:
-	#		pass
+	response=ser.readline()
 	RAW(response)
 
 
