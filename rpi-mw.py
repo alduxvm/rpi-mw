@@ -115,7 +115,7 @@ flytime = 0
 udp_mess = ""
 udp_mess2 = ""
 numOfValues = 0
-precision = 2
+precision = 3
 rcData = [1500, 1500, 1500, 1000] #order -> roll, pitch, yaw, throttle
 
 
@@ -577,11 +577,16 @@ def twosComp(hexValue):
 #	returns:  nothing
 #############################################################
 def askATT():
-	ser.flushInput()	# cleans out the serial port
-	ser.flushOutput()
+	#ser.flushInput()	# cleans out the serial port
+	#ser.flushOutput()
 	ser.write(MSP_ATTITUDE)	# sends MSP request
-	time.sleep(timeMSP)	# gives adaquate time between MSP TX & RX
-	response=ser.readline()	# reads MSP response
+	while True:
+		response = ser.readline()
+		try:
+			if response[0] == '$':
+				break
+		except:
+			pass
 	ATTITUDE(response)	# sends to ATTITUDE to parse and update global variables
 
 
@@ -593,11 +598,16 @@ def askATT():
 #	returns:  nothing
 #############################################################
 def askRC():
-	ser.flushInput()	# cleans out the serial port
-	ser.flushOutput()
+	#ser.flushInput()	# cleans out the serial port
+	#ser.flushOutput()
 	ser.write(MSP_RC)	# gets RC information
-	time.sleep(timeMSP)
-	response = ser.readline()
+	while True:
+		response = ser.readline()
+		try:
+			if response[0] == '$':
+				break
+		except:
+			pass
 	RC(response)
 
 
@@ -609,11 +619,16 @@ def askRC():
 #	returns:  nothing
 #############################################################
 def askALT():
-	ser.flushInput()	# cleans out the serial port
-	ser.flushOutput()
+	#ser.flushInput()	# cleans out the serial port
+	#ser.flushOutput()
 	ser.write(MSP_ALTITUDE)	# gets ALTITUDE data
-	time.sleep(timeMSP)
-	response=ser.readline()
+	while True:
+		response = ser.readline()
+		try:
+			if response[0] == '$':
+				break
+		except:
+			pass
 	ALTITUDE(response)
 
 
@@ -625,11 +640,16 @@ def askALT():
 #   returns:  nothing
 #############################################################
 def askMOTOR():
-	ser.flushInput()	# cleans out the serial port
-	ser.flushOutput()
+	#ser.flushInput()	# cleans out the serial port
+	#ser.flushOutput()
 	ser.write(MSP_MOTOR) # gets motors data
-	time.sleep(timeMSP)
-	response=ser.readline()
+	while True:
+		response = ser.readline()
+		try:
+			if response[0] == '$':
+				break
+		except:
+			pass
 	MOTORS(response)
 
 
@@ -641,11 +661,16 @@ def askMOTOR():
 #   returns:  nothing
 #############################################################
 def askRAW():
-	ser.flushInput()	# cleans out the serial port
-	ser.flushOutput()
+	#ser.flushInput()	# cleans out the serial port
+	#ser.flushOutput()
 	ser.write(MSP_RAW_IMU) # gets raw data
-	time.sleep(timeMSP)
-	response=ser.readline()
+	while True:
+		response = ser.readline()
+		try:
+			if response[0] == '$':
+				break
+		except:
+			pass
 	RAW(response)
 
 
@@ -758,7 +783,7 @@ def main():
 						message = str(round(diff,precision))
 					#Save elapsed time
 					if drone.FLYT:
-						message = message+" "+str(elapsed)
+						message = message+" "+str(round(elapsed,precision))
 					#save attitude
 					if drone.ATT:
 						message = message+" "+str(angx)+" "+str(angy)+" "+str(heading)
