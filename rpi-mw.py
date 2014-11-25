@@ -45,7 +45,7 @@ class drone(object):
 	ASY 	=	0 	# Use async communicacion
 	SCK 	=	0 	# Use regular socket communication
 	SCKSRV 	=	0 	# Use socketserver communication
-	PRINT 	= 	1 	# Print data to terminal, useful for debugging
+	PRINT 	= 	0 	# Print data to terminal, useful for debugging
 
 
 
@@ -597,14 +597,14 @@ def receiveData():
 			#    print ord(data_raw[2*i]), ord(data_raw[2*i+1])
 			#    print (ord(data_raw[2*i])<<0) | (ord(data_raw[2*i+1]) << 8)
 			data=[(ord(data_raw[2*i])) | (ord(data_raw[2*i+1])<<8) for i in xrange(len(data_raw)/2)]
-			roll=data[0]
-			pitch=data[0]
-			yaw=data[0]
-			throttle=data[0]
-			#print "Data: ", data
+			#roll=data[0]
+			#pitch=data[1]
+			#yaw=data[2]
+			#throttle=data[3]
+			print "Data: ", data
 		elif ord(cmd)==MSP_RAW_IMU:
 			data=[(ord(data_raw[2*i])) | (ord(data_raw[2*i+1])<<8) for i in xrange(len(data_raw)/2)]
-			#print "Data: ", data
+			print "Data: ", data
 		elif ord(cmd)==MSP_SET_RAW_RC:
 			data=[]
 		else:
@@ -614,7 +614,6 @@ def receiveData():
 		data=[]
 		error=1
 		ser.flushInput()
-
 	return((error,data))
 
 #############################################################
@@ -680,7 +679,7 @@ def twosComp(hexValue):
 def askATT():
 	#ser.flushInput()	# cleans out the serial port
 	#ser.flushOutput()
-	ser.write(MSP_RC)	# sends MSP request
+	ser.write(MSP_RAW_IMU)	# sends MSP request
 	try:
 		error,cmd_resp=receiveData()
 	except Exception, error:
@@ -834,7 +833,7 @@ def main():
 		loop_thread = threading.Thread(target=server.serve_forever, name="SocketServer Loop")
 		loop_thread.start()
 
-	print ("Beginning Multiwii - wait 14 seconds...")
+	print ("Beginning Multiwii - wait "+str(wakeUp)+" seconds...")
 
 	try:
 		ser.open()		# Opens the MultiWii serial port
